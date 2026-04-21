@@ -3,132 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mi Fisio SERMEF</title>
+    <title>Fisio SERMEF</title>
     <style>
-        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f7f6; --blue: #3498db; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 15px; color: var(--primary); }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        h1 { font-size: 1.3rem; text-align: center; margin-bottom: 20px; }
-        .timer { font-size: 2.5rem; text-align: center; font-weight: bold; color: var(--accent); margin: 10px 0; font-variant-numeric: tabular-nums; }
-        .btn { display: block; width: 100%; padding: 18px; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 12px; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
-        .btn-start { background: var(--accent); color: white; }
-        .btn-done { background: #f0f0f0; color: #777; border: 1px solid #ddd; }
-        .btn-done.active { background: #d4edda; color: #155724; border: 2px solid var(--accent); }
-        .btn-sync { background: var(--blue); color: white; margin-top: 20px; font-size: 1.1rem; }
-        .exercise-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
-        .ex-info { flex-grow: 1; padding-right: 10px; }
-        .ex-name { font-weight: bold; display: block; font-size: 1rem; }
-        .ex-reps { font-size: 0.85rem; color: #666; }
-        .selector-title { font-weight: bold; margin-bottom: 10px; display: block; }
+        body { font-family: sans-serif; background: #f4f7f6; padding: 15px; color: #2c3e50; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .timer { font-size: 2.5rem; text-align: center; font-weight: bold; color: #27ae60; margin: 10px 0; }
+        .btn { display: block; width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-start { background: #27ae60; color: white; }
+        .btn-routine { background: #34495e; color: white; }
+        .btn-done { background: #eee; color: #777; border: 1px solid #ddd; }
+        .btn-done.active { background: #d4edda; color: #155724; border: 2px solid #27ae60; }
+        .btn-sync { background: #3498db; color: white; margin-top: 20px; }
+        .ex-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
-
-    <h1>🏋️ Mi Rehabilitación SERMEF</h1>
-    
+    <h1>🏋️ Mi Fisio</h1>
     <div class="card">
         <div class="timer" id="display">00:00</div>
         <button class="btn btn-start" id="startBtn" onclick="toggleTimer()">INICIAR SESIÓN</button>
     </div>
-
-    <div id="rutina-container" style="display:none;">
-        <div class="card">
-            <h3 id="rutina-titulo" style="margin-top:0">Ejercicios</h3>
-            <div id="lista-ejercicios"></div>
-            <button class="btn btn-sync" onclick="finalizarSesion()">FINALIZAR Y ABRIR GEMINI</button>
-        </div>
-    </div>
-
     <div class="card">
-        <span class="selector-title">Elegir Rutina:</span>
-        <button class="btn" onclick="cargarRutina('Lumbar')">🦴 Espalda (Lumbar)</button>
-        <button class="btn" onclick="cargarRutina('Rodilla')">🦵 Rodilla (Gonartrosis)</button>
+        <button class="btn btn-routine" onclick="cargar('Lumbar')">🦴 Espalda</button>
+        <button class="btn btn-routine" onclick="cargar('Rodilla')">🦵 Rodilla</button>
     </div>
-
+    <div id="area-ejercicios" style="display:none" class="card">
+        <h3 id="titulo"></h3>
+        <div id="lista"></div>
+        <button class="btn btn-sync" onclick="finalizar()">FINALIZAR Y ENVIAR</button>
+    </div>
     <script>
-        let startTime, timerInterval, timerRunning = false, totalSeconds = 0;
-        let ejerciciosCompletados = new Set();
-        let rutinaActual = "";
-
+        let segs = 0, interval, running = false, completados = [], actual = "";
         const datos = {
-            'Lumbar': [
-                {n: "Estiramiento lumbosacro", r: "3 reps / 20-30s"},
-                {n: "Isquiotibiales", r: "3 reps / 20-30s"},
-                {n: "Puente con pierna", r: "1 serie x 10 reps"},
-                {n: "Abdominales manos nuca", r: "3 series x 10 reps"},
-                {n: "Abdominales cruzados", r: "1 serie x 10 reps"},
-                {n: "Extensión brazo-pierna", r: "1 serie x 10 reps"}
-            ],
-            'Rodilla': [
-                {n: "Extensión rodilla sentado", r: "3 series x 10 reps"},
-                {n: "Levantarse de silla", r: "1 serie x 10 reps"},
-                {n: "Sentadilla pared", r: "3 series x 10 reps"},
-                {n: "Elevación de talones", r: "3 series x 10 reps"},
-                {n: "Estiramiento cuádriceps", r: "3 reps / 20-30s"},
-                {n: "Elevación pierna lateral", r: "3 series x 10 reps"}
-            ]
+            'Lumbar': ["Estiramiento lumbosacro", "Isquiotibiales", "Puente con pierna", "Abdominales", "Abdom. Cruzados", "Brazo-Pierna"],
+            'Rodilla': ["Extensión sentado", "Levantarse silla", "Sentadilla pared", "Talones", "Estiramiento cuádriceps", "Elevación lateral"]
         };
-
-        function cargarRutina(tipo) {
-            rutinaActual = tipo;
-            document.getElementById('rutina-titulo').innerText = "Rutina " + tipo;
-            const lista = document.getElementById('lista-ejercicios');
+        function cargar(tipo) {
+            actual = tipo;
+            document.getElementById('titulo').innerText = "Rutina " + tipo;
+            const lista = document.getElementById('lista');
             lista.innerHTML = "";
-            ejerciciosCompletados.clear();
+            completados = [];
             datos[tipo].forEach((ex, i) => {
-                lista.innerHTML += `
-                    <div class="exercise-item">
-                        <div class="ex-info">
-                            <span class="ex-name">${ex.n}</span>
-                            <span class="ex-reps">${ex.r}</span>
-                        </div>
-                        <button class="btn btn-done" style="width:70px; margin-bottom:0" id="ex-${i}" onclick="marcar(${i}, '${ex.n}')">OK</button>
-                    </div>`;
+                lista.innerHTML += `<div class="ex-item"><span>${ex}</span><button class="btn btn-done" id="e${i}" style="width:60px" onclick="marcar(${i},'${ex}')">OK</button></div>`;
             });
-            document.getElementById('rutina-container').style.display = "block";
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            document.getElementById('area-ejercicios').style.display = "block";
         }
-
         function marcar(id, nombre) {
-            const btn = document.getElementById('ex-'+id);
-            if (!ejerciciosCompletados.has(nombre)) {
-                ejerciciosCompletados.add(nombre);
-                btn.classList.add('active');
-            } else {
-                ejerciciosCompletados.delete(nombre);
-                btn.classList.remove('active');
-            }
+            document.getElementById('e'+id).classList.toggle('active');
+            completados.push(nombre);
         }
-
         function toggleTimer() {
-            if (!timerRunning) {
-                startTime = Date.now() - (totalSeconds * 1000);
-                timerInterval = setInterval(updateTimer, 1000);
+            if (!running) {
+                interval = setInterval(() => {
+                    segs++;
+                    let m = Math.floor(segs/60).toString().padStart(2,'0');
+                    let s = (segs%60).toString().padStart(2,'0');
+                    document.getElementById('display').innerText = m+":"+s;
+                }, 1000);
                 document.getElementById('startBtn').innerText = "PAUSAR";
-                document.getElementById('startBtn').style.background = "#e67e22";
-                timerRunning = true;
+                running = true;
             } else {
-                clearInterval(timerInterval);
-                document.getElementById('startBtn').innerText = "REANUDAR";
-                document.getElementById('startBtn').style.background = var(--accent);
-                timerRunning = false;
+                clearInterval(interval);
+                document.getElementById('startBtn').innerText = "CONTINUAR";
+                running = false;
             }
         }
-
-        function updateTimer() {
-            totalSeconds = Math.floor((Date.now() - startTime) / 1000);
-            let m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-            let s = (totalSeconds % 60).toString().padStart(2, '0');
-            document.getElementById('display').innerText = `${m}:${s}`;
-        }
-
-        function finalizarSesion() {
-            const tiempo = document.getElementById('display').innerText;
-            const listaFinal = Array.from(ejerciciosCompletados).join(', ');
-            const resumen = `SESIÓN COMPLETADA\nRutina: ${rutinaActual}\nDuración: ${tiempo}\nEjercicios: ${listaFinal || 'Ninguno'}`;
-            
-            navigator.clipboard.writeText(resumen).then(() => {
-                alert("Resumen copiado al portapapeles.");
+        function finalizar() {
+            const t = document.getElementById('display').innerText;
+            const res = `SESIÓN: ${actual}. Tiempo: ${t}. Ejercicios: ${completados.join(', ')}`;
+            navigator.clipboard.writeText(res).then(() => {
+                alert("Copiado. Pégalo en el Gem ahora.");
                 window.location.href = "https://gemini.google.com/gem/c5912f79c9fe/efca5a411262c317";
             });
         }
