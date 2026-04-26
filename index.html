@@ -5,89 +5,127 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fisio SERMEF</title>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; padding: 15px; color: #2c3e50; margin:0; }
+        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f7f6; --blue: #3498db; --orange: #e67e22; }
+        body { font-family: sans-serif; background: var(--bg); padding: 15px; color: var(--primary); margin:0; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        .timer { font-size: 2.5rem; text-align: center; font-weight: bold; color: #27ae60; margin: 10px 0; }
-        .btn { display: block; width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .btn-start { background: #27ae60; color: white; }
-        .btn-routine { background: #34495e; color: white; }
-        .btn-done { background: #eee; color: #777; border: 1px solid #ddd; width: 60px; margin: 0; }
-        .btn-done.active { background: #d4edda; color: #155724; border: 2px solid #27ae60; }
-        .btn-sync { background: #3498db; color: white; margin-top: 20px; }
+        .timer { font-size: 2.5rem; text-align: center; font-weight: bold; color: var(--accent); margin: 10px 0; }
+        .btn { display: block; width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; text-align: center; text-decoration: none; }
+        .btn-routine { background: var(--primary); color: white; }
+        .btn-start { background: var(--accent); color: white; display: none; }
+        .btn-done { background: #eee; color: #777; border: 1px solid #ddd; width: 80px; margin: 0; font-size: 0.8rem; }
+        .btn-done.active { background: #d4edda; color: #155724; border: 2px solid var(--accent); }
+        .btn-sync { background: var(--blue); color: white; margin-top: 20px; display: none; }
         .ex-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
         .ex-info { flex: 1; padding-right: 10px; }
-        .ex-name { font-weight: bold; display: block; margin-bottom: 2px; }
-        .ex-reps { font-size: 0.85rem; color: #e67e22; font-weight: bold; }
-        .vid-link { font-size: 0.8rem; color: #3498db; text-decoration: none; display: inline-block; margin-top: 5px; }
+        .ex-name { font-weight: bold; display: block; }
+        .ex-reps { font-size: 0.85rem; color: var(--orange); }
+        .vid-link { font-size: 0.8rem; color: var(--blue); text-decoration: none; margin-top: 5px; display: inline-block; }
+        .step-title { font-size: 0.9rem; color: #666; text-transform: uppercase; margin-bottom: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div style="padding:15px">
-        <h1>🏋️ Mi Fisio SERMEF</h1>
-        <div class="card">
-            <div class="timer" id="display">00:00</div>
-            <button class="btn btn-start" id="startBtn" onclick="toggleTimer()">INICIAR SESIÓN</button>
-        </div>
-        <div class="card">
+        <h1>🏋️ Mi Fisio Personal</h1>
+
+        <div class="card" id="paso1">
+            <div class="step-title">1. Elige la zona a trabajar</div>
             <button class="btn btn-routine" onclick="cargar('Lumbar')">🦴 Espalda (Lumbar)</button>
             <button class="btn btn-routine" onclick="cargar('Rodilla')">🦵 Rodilla (Gonartrosis)</button>
         </div>
-        <div id="area-ejercicios" style="display:none" class="card">
-            <h3 id="titulo"></h3>
-            <div id="lista"></div>
-            <button class="btn btn-sync" onclick="finalizar()">FINALIZAR Y ENVIAR AL GEM</button>
+
+        <div id="paso2" style="display:none" class="card">
+            <div class="step-title">2. Selecciona qué ejercicios harás</div>
+            <div id="lista-seleccion"></div>
+            <button class="btn btn-routine" style="background:var(--orange)" onclick="confirmarSeleccion()">CONFIRMAR SELECCIÓN</button>
+        </div>
+
+        <div id="paso3" style="display:none">
+            <div class="card">
+                <div class="step-title">3. ¡A entrenar!</div>
+                <div class="timer" id="display">00:00</div>
+                <button class="btn btn-start" id="startBtn" style="display:block" onclick="toggleTimer()">INICIAR CRONÓMETRO</button>
+            </div>
+            <div class="card">
+                <div id="lista-entrenamiento"></div>
+                <button class="btn btn-sync" id="syncBtn" onclick="finalizar()">FINALIZAR Y ENVIAR AL GEM</button>
+            </div>
         </div>
     </div>
 
     <script>
-        let segs = 0, interval, running = false, completados = [], actual = "";
+        let segs = 0, interval, running = false, seleccionados = [], actual = "";
         const datos = {
             'Lumbar': [
-                {n: "Estiramiento lumbosacro", r: "3 reps (20-30s)", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=estiramiento-lumbosacro"},
-                {n: "Isquiotibiales", r: "3 reps (20-30s)", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=estiramiento-isquiotibiales"},
-                {n: "Puente con pierna", r: "1 serie x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=puente-con-una-pierna"},
-                {n: "Abdominales", r: "3 series x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=abdominales-con-manos-en-nuca"},
-                {n: "Abdom. Cruzados", r: "1 serie x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=abdominales-cruzados"},
-                {n: "Brazo-Pierna", r: "1 serie x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=extension-de-brazo-y-pierna-alternos"}
+                {n: "Estiramiento lumbosacro", r: "3 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=estiramiento-lumbosacro"},
+                {n: "Isquiotibiales", r: "3 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=estiramiento-isquiotibiales"},
+                {n: "Puente con pierna", r: "1x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=puente-con-una-pierna"},
+                {n: "Abdominales", r: "3x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=abdominales-con-manos-en-nuca"},
+                {n: "Abdom. Cruzados", r: "1x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=abdominales-cruzados"},
+                {n: "Brazo-Pierna", r: "1x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-15-73&a=extension-de-brazo-y-pierna-alternos"}
             ],
             'Rodilla': [
-                {n: "Extensión sentado", r: "3 series x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=extension-de-rodilla-en-sedestacion"},
-                {n: "Levantarse silla", r: "1 serie x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=levantarse-y-sentarse-en-una-silla"},
-                {n: "Sentadilla pared", r: "3 series x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=sentadilla-en-la-pared"},
-                {n: "Talones", r: "3 series x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=elevacion-de-talones"},
-                {n: "Estiramiento cuádriceps", r: "3 reps (20-30s)", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=estiramiento-de-cuadriceps"},
-                {n: "Elevación lateral", r: "3 series x 10 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=elevacion-lateral-de-la-pierna"}
+                {n: "Extensión sentado", r: "3x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=extension-de-rodilla-en-sedestacion"},
+                {n: "Levantarse silla", r: "1x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=levantarse-y-sentarse-en-una-silla"},
+                {n: "Sentadilla pared", r: "3x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=sentadilla-en-la-pared"},
+                {n: "Talones", r: "3x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=elevacion-de-talones"},
+                {n: "Estiramiento cuádriceps", r: "3 reps", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=estiramiento-de-cuadriceps"},
+                {n: "Elevación lateral", r: "3x10", v: "https://www.sermef-ejercicios.org/index.php?id=80&p=p-14-100&a=elevacion-lateral-de-la-pierna"}
             ]
         };
 
         function cargar(tipo) {
             actual = tipo;
-            document.getElementById('titulo').innerText = "Rutina " + tipo;
-            const lista = document.getElementById('lista');
+            seleccionados = [];
+            const lista = document.getElementById('lista-seleccion');
             lista.innerHTML = "";
-            completados = [];
             datos[tipo].forEach((ex, i) => {
                 lista.innerHTML += `
+                <div class="ex-item">
+                    <div class="ex-info">
+                        <span class="ex-name">${ex.n}</span>
+                        <span class="ex-reps">${ex.r}</span>
+                    </div>
+                    <button class="btn btn-done" id="sel-${i}" onclick="toggleSeleccion(${i},'${ex.n}')">ELEGIR</button>
+                </div>`;
+            });
+            document.getElementById('paso1').style.display = "none";
+            document.getElementById('paso2').style.display = "block";
+        }
+
+        function toggleSeleccion(id, nombre) {
+            const btn = document.getElementById('sel-'+id);
+            const index = seleccionados.indexOf(nombre);
+            if(index === -1) {
+                seleccionados.push(nombre);
+                btn.classList.add('active');
+                btn.innerText = "SÍ";
+            } else {
+                seleccionados.splice(index, 1);
+                btn.classList.remove('active');
+                btn.innerText = "ELEGIR";
+            }
+        }
+
+        function confirmarSeleccion() {
+            if(seleccionados.length === 0) { alert("Elige al menos un ejercicio"); return; }
+            const listaEntr = document.getElementById('lista-entrenamiento');
+            listaEntr.innerHTML = "";
+            
+            // Filtrar los ejercicios de la zona actual que han sido seleccionados
+            const ejerciciosFiltrados = datos[actual].filter(ex => seleccionados.includes(ex.n));
+            
+            ejerciciosFiltrados.forEach((ex, i) => {
+                listaEntr.innerHTML += `
                 <div class="ex-item">
                     <div class="ex-info">
                         <span class="ex-name">${ex.n}</span>
                         <span class="ex-reps">${ex.r}</span><br>
                         <a href="${ex.v}" target="_blank" class="vid-link">📺 Ver vídeo</a>
                     </div>
-                    <button class="btn btn-done" id="e${i}" onclick="marcar(${i},'${ex.n}','${ex.r}')">OK</button>
                 </div>`;
             });
-            document.getElementById('area-ejercicios').style.display = "block";
-            window.scrollTo(0, document.body.scrollHeight);
-        }
-
-        function marcar(id, nombre, reps) {
-            const btn = document.getElementById('e'+id);
-            btn.classList.toggle('active');
-            const txt = `${nombre} (${reps})`;
-            const pos = completados.indexOf(txt);
-            if(pos === -1) completados.push(txt);
-            else completados.splice(pos, 1);
+            document.getElementById('paso2').style.display = "none";
+            document.getElementById('paso3').style.display = "block";
         }
 
         function toggleTimer() {
@@ -100,6 +138,7 @@
                 }, 1000);
                 document.getElementById('startBtn').innerText = "PAUSAR";
                 document.getElementById('startBtn').style.background = "#e67e22";
+                document.getElementById('syncBtn').style.display = "block";
                 running = true;
             } else {
                 clearInterval(interval);
@@ -111,7 +150,7 @@
 
         function finalizar() {
             const t = document.getElementById('display').innerText;
-            const res = `SESIÓN: ${actual}. Tiempo: ${t}. Ejercicios: ${completados.join(', ')}`;
+            const res = `SESIÓN: ${actual}. Tiempo: ${t}. Ejercicios hechos: ${seleccionados.join(', ')}`;
             navigator.clipboard.writeText(res).then(() => {
                 alert("Resumen copiado. Pégalo en el Gem.");
                 window.location.href = "https://gemini.google.com/gem/c5912f79c9fe/efca5a411262c317";
